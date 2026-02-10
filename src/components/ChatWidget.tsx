@@ -13,6 +13,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface Message {
+  id?: string | number;
   text: string;
   senderType: 'CUSTOMER' | 'AGENT';
   senderName?: string;
@@ -20,6 +21,8 @@ interface Message {
 }
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+// Chuẩn hóa API Base URL theo SERVICE_PREFIX = api/be
+const API_BASE_URL = `${SOCKET_URL}/api/be`;
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +33,6 @@ export default function ChatWidget() {
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Form states
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     phone: '',
@@ -38,16 +40,23 @@ export default function ChatWidget() {
     customerToken: '',
   });
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom('auto');
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   useEffect(() => {
-    // Check localStorage for existing session
     const savedId = localStorage.getItem('chat_conversationId');
     const savedToken = localStorage.getItem('chat_customerToken');
     const savedName = localStorage.getItem('chat_customerName');
@@ -60,36 +69,66 @@ export default function ChatWidget() {
         name: savedName || '',
       }));
       setIsStarted(true);
+
+      // 1. Load history via REST with Header Token
+      fetch(`${API_BASE_URL}/cms/chat/client/conversations/${savedId}/messages`, {
+        headers: {
+          'x-customer-token': savedToken,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.items) {
+            setMessages(data.items);
+          }
+        })
+        .catch((err) => console.error('Failed to load history:', err));
+
       initSocket(savedId, savedToken);
     }
   }, []);
 
   const initSocket = (id: string, token: string) => {
-    if (socketRef.current) return;
+    if (socketRef.current?.connected) return;
 
-    socketRef.current = io(SOCKET_URL, {
+    const socket = io(SOCKET_URL, {
       transports: ['websocket'],
-      query: { conversationId: id, customerToken: token },
     });
 
-    socketRef.current.on('message:new', (msg: Message) => {
-      setMessages((prev) => [...prev, msg]);
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Socket connected, resuming room...');
+      socket.emit('customer:resume', { conversationId: id, customerToken: token });
     });
 
-    socketRef.current.on('connect_error', (err) => {
+    socket.on('message:new', (msg: Message) => {
+      setMessages((prev) => {
+        // Dedupe by id hoặc content + time
+        const isDuplicate = prev.some(
+          (m) =>
+            (m.id && msg.id && m.id === msg.id) ||
+            (m.text === msg.text &&
+              m.senderType === msg.senderType &&
+              Math.abs(dayjs(m.createdAt).diff(dayjs(msg.createdAt))) < 2000)
+        );
+        if (isDuplicate) return prev;
+        return [...prev, msg];
+      });
+    });
+
+    socket.on('connect_error', (err) => {
       console.error('Socket connection error:', err);
     });
-
-    // Rejoin room if needed
-    socketRef.current.emit('customer:resume', { conversationId: id, customerToken: token });
   };
 
   const handleStartChat = async (values: { name: string; phone: string; message: string }) => {
     setLoading(true);
     try {
-      // In a real scenario, we connect first then emit
-      const socket = io(SOCKET_URL, { transports: ['websocket'] });
-      socketRef.current = socket;
+      if (!socketRef.current) {
+        socketRef.current = io(SOCKET_URL, { transports: ['websocket'] });
+      }
+      const socket = socketRef.current;
 
       socket.emit(
         'customer:start',
@@ -111,16 +150,8 @@ export default function ChatWidget() {
               customerToken: response.customerToken,
             });
 
-            setMessages([
-              {
-                text: values.message,
-                senderType: 'CUSTOMER',
-                createdAt: new Date().toISOString(),
-              },
-            ]);
-
             setIsStarted(true);
-            initSocket(response.conversationId, response.customerToken);
+            // Server sẽ emit message:new cho cả sender, nên không cần setMessages tay ở đây
           }
           setLoading(false);
         }
@@ -141,22 +172,13 @@ export default function ChatWidget() {
     };
 
     socketRef.current.emit('customer:message', msgData);
-
-    // Optimistic update
-    setMessages((prev) => [
-      ...prev,
-      {
-        text: inputValue.trim(),
-        senderType: 'CUSTOMER',
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+    // BE đã được sửa để emit-to-all, nên FE không cần optimistic update
+    // Điều này giúp tránh việc nhân đôi tin nhắn khi đang debug contract
     setInputValue('');
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {/* Floating Button */}
+    <div className="fixed bottom-20 right-6 z-50">
       {!isOpen && (
         <Button
           type="primary"
@@ -168,7 +190,6 @@ export default function ChatWidget() {
         />
       )}
 
-      {/* Chat Window */}
       {isOpen && (
         <Card
           className="flex h-[500px] w-[350px] flex-col overflow-hidden border-none shadow-2xl sm:w-[400px]"
@@ -186,7 +207,6 @@ export default function ChatWidget() {
           }
         >
           {!isStarted ? (
-            /* Start Form */
             <div className="flex-1 overflow-y-auto p-6">
               <p className="mb-6 text-center text-gray-500">
                 Vui lòng để lại thông tin, chúng tôi sẽ hỗ trợ bạn ngay!
@@ -231,12 +251,11 @@ export default function ChatWidget() {
               </Form>
             </div>
           ) : (
-            /* Chat Interface */
-            <div className="flex h-full flex-col bg-gray-50">
-              <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            <div className="flex h-full flex-col overflow-hidden bg-gray-50">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
                 {messages.map((msg, index) => (
                   <div
-                    key={index}
+                    key={msg.id || index}
                     className={`flex ${msg.senderType === 'CUSTOMER' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
@@ -273,24 +292,28 @@ export default function ChatWidget() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Area */}
-              <div className="flex items-center gap-2 border-t border-gray-200 bg-white p-3">
-                <Input
-                  placeholder="Nhập tin nhắn..."
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onPressEnter={handleSendMessage}
-                  variant="borderless"
-                  className="flex-1 focus:ring-0"
-                />
-                <Button
-                  type="primary"
-                  shape="circle"
-                  icon={<SendOutlined />}
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim()}
-                  className="flex-shrink-0 bg-blue-600"
-                />
+              <div className="shrink-0 border-t border-gray-200 bg-white p-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Nhập tin nhắn..."
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onPressEnter={(e) => {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }}
+                    variant="borderless"
+                    className="flex-1 focus:ring-0"
+                  />
+                  <Button
+                    type="primary"
+                    shape="circle"
+                    icon={<SendOutlined />}
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim()}
+                    className="flex flex-shrink-0 items-center justify-center bg-blue-600"
+                  />
+                </div>
               </div>
             </div>
           )}

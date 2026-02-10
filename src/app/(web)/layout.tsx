@@ -9,8 +9,8 @@ export default function WebLayout({ children }: Readonly<{ children: React.React
     <>
       <Header />
       <main className="container">{children}</main>
-      <Footer />
       <ChatWidget />
+      <Footer />
     </>
   );
 }
