@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+      "awslabs.openapi-mcp-server (NestJS)": {
+        "command": "uvx",
+        "args": ["awslabs.openapi-mcp-server@latest"],
+        "env": {
+          "API_NAME": "chat-api",
+          "API_BASE_URL": "http://localhost:3001",
+          "API_SPEC_URL": "http://localhost:3001/apis",
+          "LOG_LEVEL": "ERROR",
+          "ENABLE_PROMETHEUS": "false",
+          "ENABLE_OPERATION_PROMPTS": "true"
+        },
+        "disabled": false
+      }
+    }
+  }
+  

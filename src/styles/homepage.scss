@@ -1,0 +1,191 @@
+.home-page.theme-dark {
+  background: linear-gradient(90deg, #050a1d 0%, #09153f 100%);
+  color: black !important;
+}
+
+.home-page.theme-light {
+  background: #f5f7ff;
+
+  .extension {
+    background: #ffffff;
+  }
+  .extension-title .title {
+    color: #0b1220;
+  }
+  .extension-item {
+    background-color: #ffffff;
+  }
+  .remove-button {
+    background: white !important;
+    color: black !important;
+    border: 1px solid #e4e5e7 !important;
+  }
+  .switch-button {
+    background: #eeeeee;
+  }
+  .buttons {
+    .button {
+      color: black !important;
+      background: #ffffff !important;
+      border: 1px solid #eef2ff !important;
+    }
+    .active,
+    .inactive,
+    .all {
+      background: #f55a52 !important;
+      color: white !important;
+    }
+  }
+
+  .extension-item-content {
+    color: black !important;
+  }
+}
+
+.extension {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 50px;
+  width: 100%;
+  padding: 0 12px;
+  background: #1f2535;
+  border-radius: $border-radius-xl;
+  .icon {
+    max-width: 200px;
+  }
+
+  .switch-button {
+    display: flex;
+    height: 41px;
+    width: 41px;
+    justify-content: center;
+    align-items: center;
+    background: #2f354b;
+    border-width: 0;
+    border-radius: $border-radius-lg;
+  }
+}
+
+.extension-title {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 0 12px;
+  width: 100%;
+  .title {
+    font-size: 26px;
+    font-family: NotoSans-Bold;
+    color: #ffffff;
+  }
+  .buttons {
+    display: flex;
+    gap: 12px;
+    flex-direction: row;
+    .button {
+      font-size: 16px;
+      font-family: NotoSans-Regular;
+      color: #ffffff;
+      background: #2f354b;
+      border-width: 0;
+      border-radius: 20px;
+      padding: 0 16px;
+      height: 36px;
+    }
+    .active,
+    .inactive,
+    .all {
+      background: #f55a52;
+      color: #3e0d22;
+    }
+  }
+
+  @media (max-width: $breakpoint-sm) {
+    justify-content: center;
+  }
+}
+
+.extension-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px; // khoảng hở
+
+  .extension-item {
+    flex: 0 1 calc(33.333% - 8px); // trừ gap
+    background-color: #1f2535;
+    border-radius: 18px;
+    padding: 14px;
+    @media (max-width: $breakpoint-md) {
+      flex-basis: 100%;
+    }
+
+    .remove-button {
+      background: #1e2432;
+      color: white;
+      border: 1px solid #565e74;
+      border-radius: 16px;
+      padding: 4px 10px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    /* track */
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #3b3f4a; /* OFF background */
+      border-radius: 999px;
+      transition: 0.2s;
+      cursor: pointer;
+    }
+
+    /* knob */
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #fff;
+      border-radius: 999px;
+      transition: 0.2s;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    /* ON state */
+    .switch input:checked + .slider {
+      background: #ff6b5c; /* ON background đỏ/cam */
+    }
+
+    .switch input:checked + .slider::before {
+      left: calc(100% - 3px - 14px); /* knob chạy sang phải */
+    }
+
+    /* focus (tab) */
+    .switch input:focus-visible + .slider {
+      outline: 2px solid rgba(255, 255, 255, 0.35);
+      outline-offset: 2px;
+    }
+
+    /* disabled (optional) */
+    .switch input:disabled + .slider {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}

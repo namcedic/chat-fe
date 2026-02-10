@@ -1,0 +1,43 @@
+// Global SCSS styles
+@import './variables.scss';
+@import './mixins.scss';
+@import './header.scss';
+@import './main-header.scss';
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: #ffffffff;
+  font-size: 14px;
+}
+
+// Ant Design overrides
+.ant-layout {
+  min-height: 100vh;
+}
+
+// Custom utilities
+.container {
+  display: flex;
+  margin: 0 auto;
+  padding: 12px;
+  color: black;
+
+  @media (min-width: $breakpoint-xl) {
+    max-width: 1224px;
+  }
+}
+
+.main-container {
+  min-height: 80vh;
+
+  @media (max-width: $breakpoint-lg) {
+    min-height: 50vh;
+  }
+}
